@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Nov  7 01:02:32 2019
+
+@author: Mavis
+"""
+
+import pandas as pd
+from matplotlib.pyplot import style
+import seaborn as sns
+style.use('seaborn')
+
+sns.set(style = 'darkgrid')
+
+xls = pd.ExcelFile('STAT.xlsx')
+
+novak = pd.read_excel(xls, 'DJOKOVIC')
+
+def get_w_l(df):
+    SINGLES_W = []
+    SINGLES_L = []
+    for i in df['SINGLES W-L']:
+        SINGLES_W.append(int(i.split("-")[0]))
+        SINGLES_L.append(int(i.split("-")[1]))
+    return SINGLES_W, SINGLES_L
+
+novak = novak.iloc[:-1,]
+novak['SINGLES_W'], novak['SINGLES_L'] = get_w_l(novak)
+novak.drop(['SINGLES W-L'], axis = 1, inplace=True)
+
+novak.set_index('YEAR', inplace = True)
+novak.index = pd.to_datetime(novak.index, format = "%Y")
+novak.index = novak.index.year
+
+#novak = pd.to_numeric(novak, errors = "coerce")
+novak = novak.astype('int')
+
+novak = novak[::-1]
+
+###
+federer = pd.read_excel(xls, 'FEDERER')
+
+federer = federer.iloc[:-1,]
+federer['SINGLES_W'], federer['SINGLES_L'] = get_w_l(federer)
+federer.drop(['SINGLES W-L'], axis = 1, inplace=True)
+
+federer.set_index('YEAR', inplace = True)
+federer.index = pd.to_datetime(federer.index, format = "%Y").year
+
+federer = federer.astype('int')
+
+federer = federer[::-1]
+
+###
+nadal = pd.read_excel(xls, 'NADAL')
+
+nadal = nadal.iloc[:-1,]
+nadal['SINGLES_W'], nadal['SINGLES_L'] = get_w_l(nadal)
+nadal.drop(['SINGLES W-L'], axis = 1, inplace=True)
+
+nadal.set_index('YEAR', inplace = True)
+nadal.index = pd.to_datetime(nadal.index, format = "%Y").year
+
+nadal = nadal.astype('int')
+nadal = nadal[::-1]
+
+##
+nishikori = pd.read_excel(xls, 'NISHIKORI')
+
+nishikori = nishikori.iloc[:-1,]
+nishikori['SINGLES_W'], nishikori['SINGLES_L'] = get_w_l(nishikori)
+nishikori.drop(['SINGLES W-L'], axis = 1, inplace=True)
+
+nishikori.set_index('YEAR', inplace = True)
+nishikori.index = pd.to_datetime(nishikori.index, format = "%Y").year
+
+nishikori = nishikori.astype('int')
+
+nishikori = nishikori[::-1]
+
+df = pd.concat([novak[['SINGLES TITLES']], federer[['SINGLES TITLES']], nadal[['SINGLES TITLES']], nishikori[['SINGLES TITLES']]], axis =1)
+df.columns = ['Djokovic', 'Federer', 'Nadal', 'Nishikori']
+
+df2 = pd.concat([novak[['PRIZE MONEY']], federer[['PRIZE MONEY']], nadal[['PRIZE MONEY']], nishikori[['PRIZE MONEY']]], axis =1)
+df2.columns = ['Djokovic', 'Federer', 'Nadal', 'Nishikori']
+
+fig, axes = plt.subplots(2, 1)
+fig = plt.gcf()
+fig.set_size_inches(15, 10)
+df.plot.bar(ax=axes[0])
+df2.plot(ax=axes[1], sharex=axes[0])
+plt.suptitle('SINGLES TITLES AND PRIZE MONEY OF DJOKOVIC AND HIS OPPONENTS FROM 2007-2019', size = 18)

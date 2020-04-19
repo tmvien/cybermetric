@@ -1,0 +1,184 @@
+---
+title: "Cybermetric"
+output: html_notebook
+---
+
+```{r}
+library(readxl)
+novak <- read_excel("STAT.xlsx", sheet = "DJOKOVIC")
+colnames(novak) <- c('Year', 'PrizeMoney', 'SingleTitles', 'DoubleTitles', 'SinglesWL')
+novak$Year <- as.Date(ISOdate(novak$Year, 12, 31))
+novak <- novak[c(1:13),]
+novak<- novak[seq(dim(novak)[1],1),]
+novak
+```
+
+```{r}
+for (i in (1: nrow(novak))) {
+  novak$SingleW[i] <- strsplit(novak$SinglesWL[i], "-")[[1]][1]
+  novak$SingleL[i] <- strsplit(novak$SinglesWL[i], "-")[[1]][2]
+}
+novak
+```
+
+```{r}
+
+```
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+novak <- novak %>%
+  separate(SinglesWL, c("SingleW", "SingleL"), "-")
+novak
+```
+
+```{r}
+out <- strsplit(as.character(novak$SinglesWL),'-') 
+novak_n <- do.call(rbind, out)
+
+```
+
+
+```{r}
+novak_xts <- xts(x = novak[,-1], order.by = as.Date(as.POSIXct(novak$Year, format = "%Y")))
+novak_xts <-novak_xts[,]
+novak_xts$PrizeMoney <- as.numeric(gsub('"', '',  novak_xts$PrizeMoney))
+novak_xts$SingleTitles <- as.numeric(gsub('"', '',  novak_xts$SingleTitles))
+novak_xts$DoubleTitles <- as.numeric(gsub('"', '',  novak_xts$DoubleTitles))
+novak_xts
+```
+
+```{r}
+class(novak_xts) <- "numeric"
+novak_xts <- xts(x = novak_xts, order.by = as.Date(as.POSIXct(novak$Year, format = "%Y")))
+indexFormat(novak_xts) <- "%Y"
+novak_xts
+```
+
+```{r}
+par(mfrow = c(2, 1))
+plot(novak_xts$PrizeMoney)
+plot(novak_xts$SingleTitles)
+```
+
+```{r}
+novak_xts
+```
+
+
+```{r}
+barplot(novak_xts[,c(2, 3)], beside = TRUE)
+```
+
+```{r}
+barplot(novak_xts[,c(4, 5)], beside = TRUE, col = c("red", "blue"), border = TRUE, main = 'Djokovic - Number of Singles Win and Lost from 2007-2019', ylab = "Singles Win-Lost", xlab = 'Year')
+legend(x = "topright", 
+       legend = c("Win", "Lost"),
+       col = c("red", "blue"),
+       lty = c(1, 1), lwd = c(2, 2))
+```
+
+
+```{r}
+mod <- lm(PrizeMoney ~ SingleTitles, data = novak)
+summary(mod)
+```
+
+```{r}
+library(ggplot2)
+novak$Year <- as.Date(ISOdate(novak$Year, 12, 31))
+ggplot(novak, aes(x = Year, y = SingleTitles)) + geom_line(col = 'red')
+plot(novak$Year, novak$SingleTitles, geom = "line")
+```
+
+```{r}
+novak
+```
+
+```{r}
+rownames(novak) <- novak$Year
+SD_novak <- novak[,c("SingleTitles", "DoubleTitles")]
+rownames(SD_novak) <- novak$Year
+SD_novak <- as.xts(SD_novak)
+barplot(SD_novak, beside = TRUE)
+```
+
+```{r}
+rownames(SD_novak)
+```
+
+
+```{r}
+library(RColorBrewer)
+library(ggthemes)
+
+custom_theme <- theme_economist() +
+  theme(legend.position = c(0.9, 0.9),
+        legend.title = element_text(face = "italic", size = 12),
+        axis.title = element_text(face = "bold", size = 14),
+        plot.title = element_text(face = "bold"),
+        )
+z <- ggplot() + 
+  geom_line(novak, mapping = aes(x = Year, y = PrizeMoney, col = "History"), lwd = 2) +
+  geom_line(newdata, mapping = aes(x = Year, y = PrizeMoney, col = "Prediction"), lwd = 2) +
+  scale_color_manual(values = c(
+    'History' = 'steelblue',
+    'Prediction' = 'red')) + labs(color = "Prize Money") +
+  labs(x = "Year", y = "Prize Money", title = "Djokovic's Prize Money History and Future Predictions")  
+  
+z + custom_theme
+```
+
+
+```{r}
+prediction <- data.frame(Year = c("2020", "2021", "2022", "2023", "2024"), SingleTitles = c(6, 7, 8, 7, 10))
+prediction$Year <- as.Date(ISOdate(prediction$Year, 12, 31))
+pred <-  data.frame(SingleTitles = c(6, 7, 8, 7, 10))
+prediction <- predict(mod, pred)
+pred <- data.frame(pred$SingleTitles, prediction)
+pred
+```
+
+```{r}
+newdata <- data.frame(Year = c("2020", "2021", "2022", "2023", "2024"), SingleTitles = sample(1:10, 5,replace=T))
+newdata$Year <- as.Date(ISOdate(newdata$Year, 1, 1))
+newdata
+```
+
+```{r}
+newdata$PrizeMoney <- prediction <- predict(mod, newdata = newdata)
+newdata
+```
+
+
+```{r}
+
+
+ggplot() +
+  geom_line(pred, mapping = aes(x = SingleTitles, y = prediction), col = "red", lwd = 2) +
+  geom_jitter(novak, mapping = aes(x = SingleTitles, y = PrizeMoney)) +
+  geom_smooth(novak, mapping = aes(x = SingleTitles, y = PrizeMoney), method = 'lm', se = FALSE, col = "steelblue")
+```
+
+```{r}
+std <- function(v) sqrt(mean((v-mean(v))**2))
+
+xs <- (200:400)*0.01
+sigma <- std(c(1,2,3))
+belowSigma <- c()
+
+for (x in xs) {
+    newSigma <- std(c(1,2,3,x))
+    if (newSigma < sigma) belowSigma <- c(belowSigma,x)
+}
+
+answer <- max(belowSigma)
+cat(answer,sep='')
+```
+
+```{r}
+xs
+```
+
